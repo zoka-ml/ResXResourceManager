@@ -31,7 +31,7 @@ namespace ResXManager.Scripting
         {
             get
             {
-                var folder = Folder;
+                var folder = Folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 if (String.IsNullOrEmpty(folder))
                     return new ProjectFile[0];
 
