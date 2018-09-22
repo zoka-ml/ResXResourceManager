@@ -204,12 +204,13 @@
         /// </summary>
         /// <param name="entity">The entity.</param>
         /// <param name="table">The text.</param>
-        public static void ImportTable([NotNull] this ResourceEntity entity, [NotNull] IList<IList<string>> table)
+        public static void ImportTable([NotNull] this ResourceEntity entity, [NotNull] IList<IList<string>> table, [NotNull] IEnumerable<CultureKey> languages, [NotNull] IEnumerable<CultureKey> commentLanguages)
         {
             Contract.Requires(entity != null);
             Contract.Requires(table != null);
+			Contract.Requires(languages != null);
 
-            entity.ImportTable(_fixedColumnHeaders, table).Apply();
+            entity.ImportTable(_fixedColumnHeaders, table, languages, commentLanguages).Apply();
         }
 
         public static bool Apply([NotNull] this EntryChange change)
@@ -234,7 +235,12 @@
         }
 
         [NotNull]
-        public static ICollection<EntryChange> ImportTable([NotNull] this ResourceEntity entity, [NotNull] ICollection<string> fixedColumnHeaders, [NotNull] IList<IList<string>> table)
+        public static ICollection<EntryChange> ImportTable(
+			[NotNull] this ResourceEntity entity, 
+			[NotNull] ICollection<string> fixedColumnHeaders, 
+			[NotNull] IList<IList<string>> table, 
+			IEnumerable<CultureKey> languages, 
+			IEnumerable<CultureKey> commentLanguages)
         {
             Contract.Requires(entity != null);
             Contract.Requires(fixedColumnHeaders != null);
@@ -276,7 +282,10 @@
                 .ToArray();
 
             var changes = mappings
-                .Where(mapping => (mapping.OriginalText != mapping.Text) && !string.IsNullOrEmpty(mapping.Text))
+                .Where(mapping => 
+					(mapping.OriginalText != mapping.Text) && 
+					(mapping.ColumnKind == ColumnKind.Text && languages.Contains(mapping.Culture) ||
+					mapping.ColumnKind == ColumnKind.Comment && commentLanguages.Contains(mapping.Culture)))
                 .ToArray();
 
             VerifyCultures(entity, changes.Select(c => c.Culture).Distinct());

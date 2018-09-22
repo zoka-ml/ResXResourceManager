@@ -104,10 +104,11 @@
         }
 
         [NotNull]
-        public static IList<EntryChange> ImportExcelFile([NotNull] this ResourceManager resourceManager, [NotNull] string filePath)
+        public static IList<EntryChange> ImportExcelFile([NotNull] this ResourceManager resourceManager, [NotNull] string filePath, [NotNull] IEnumerable<CultureKey> languages, [NotNull] IEnumerable<CultureKey> commentLanguages)
         {
             Contract.Requires(resourceManager != null);
             Contract.Requires(filePath != null);
+			Contract.Requires(languages != null);
             Contract.Ensures(Contract.Result<IEnumerable<EntryChange>>() != null);
 
             using (var package = SpreadsheetDocument.Open(filePath, false))
@@ -131,18 +132,19 @@
                 var firstRow = firstSheet.GetRows(workbookPart).FirstOrDefault();
 
                 var changes = IsSingleSheetHeader(firstRow, sharedStrings)
-                    ? ImportSingleSheet(resourceManager, firstSheet, workbookPart, sharedStrings)
-                    : ImportMultipleSheets(resourceManager, sheets, workbookPart, sharedStrings);
+                    ? ImportSingleSheet(resourceManager, firstSheet, workbookPart, sharedStrings, languages, commentLanguages)
+                    : ImportMultipleSheets(resourceManager, sheets, workbookPart, sharedStrings, languages, commentLanguages);
 
                 return changes.ToArray();
             }
         }
 
-        private static IEnumerable<EntryChange> ImportSingleSheet([NotNull] ResourceManager resourceManager, [NotNull] Sheet firstSheet, [NotNull] WorkbookPart workbookPart, IList<SharedStringItem> sharedStrings)
+        private static IEnumerable<EntryChange> ImportSingleSheet([NotNull] ResourceManager resourceManager, [NotNull] Sheet firstSheet, [NotNull] WorkbookPart workbookPart, IList<SharedStringItem> sharedStrings, IEnumerable<CultureKey> languages, IEnumerable<CultureKey> commentLanguages)
         {
             Contract.Requires(resourceManager != null);
             Contract.Requires(firstSheet != null);
             Contract.Requires(workbookPart != null);
+			Contract.Requires(languages != null);
 
             var data = firstSheet.GetRows(workbookPart).Select(row => row.GetCellValues(sharedStrings)).ToArray();
 
@@ -186,7 +188,7 @@
 
                     var tableData = new[] { headerRow }.Concat(fileRows).ToArray();
 
-                    foreach (var change in entity.ImportTable(_fixedColumnHeaders, tableData))
+                    foreach (var change in entity.ImportTable(_fixedColumnHeaders, tableData, languages, commentLanguages))
                     {
                         yield return change;
                     }
@@ -195,17 +197,18 @@
         }
 
         [NotNull]
-        private static IEnumerable<EntryChange> ImportMultipleSheets([NotNull] ResourceManager resourceManager, [NotNull] Sheets sheets, [NotNull] WorkbookPart workbookPart, IList<SharedStringItem> sharedStrings)
+        private static IEnumerable<EntryChange> ImportMultipleSheets([NotNull] ResourceManager resourceManager, [NotNull] Sheets sheets, [NotNull] WorkbookPart workbookPart, IList<SharedStringItem> sharedStrings, IEnumerable<CultureKey> languages, [NotNull] IEnumerable<CultureKey> commentLanguages)
         {
             Contract.Requires(resourceManager != null);
             Contract.Requires(sheets != null);
             Contract.Requires(workbookPart != null);
+			Contract.Requires(languages != null);
             Contract.Ensures(Contract.Result<IEnumerable<EntryChange>>() != null);
 
             var entities = GetMultipleSheetEntities(resourceManager).ToArray();
 
             var changes = sheets.OfType<Sheet>()
-                .SelectMany(sheet => FindResourceEntity(entities, sheet).ImportTable(_fixedColumnHeaders, sheet.GetTable(workbookPart, sharedStrings)));
+                .SelectMany(sheet => FindResourceEntity(entities, sheet).ImportTable(_fixedColumnHeaders, sheet.GetTable(workbookPart, sharedStrings), languages, commentLanguages));
 
             return changes;
         }

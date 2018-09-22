@@ -1,23 +1,25 @@
 ﻿namespace ResXManager.Scripting
 {
-    using System;
-    using System.Collections.Generic;
-    using System.ComponentModel.Composition.Hosting;
-    using System.Diagnostics;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
-    using System.IO;
-    using System.Linq;
+	using System;
+	using System.Collections;
+	using System.Collections.Generic;
+	using System.ComponentModel.Composition.Hosting;
+	using System.Diagnostics;
+	using System.Diagnostics.CodeAnalysis;
+	using System.Diagnostics.Contracts;
+	using System.IO;
+	using System.Linq;
 
-    using JetBrains.Annotations;
+	using JetBrains.Annotations;
 
-    using tomenglertde.ResXManager.Infrastructure;
-    using tomenglertde.ResXManager.Model;
-    using tomenglertde.ResXManager.Model.Properties;
+	using tomenglertde.ResXManager.Infrastructure;
+	using tomenglertde.ResXManager.Model;
+	using tomenglertde.ResXManager.Model.Properties;
 
-    using TomsToolbox.Desktop.Composition;
+	using TomsToolbox.Desktop.Composition;
+	using TomsToolbox.Core;
 
-    public sealed class Host : IDisposable
+	public sealed class Host : IDisposable
     {
         [NotNull]
         private readonly ICompositionHost _compositionHost = new CompositionHost();
@@ -103,12 +105,36 @@
         {
             Contract.Requires(filePath != null);
 
-            var changes = _resourceManager.ImportExcelFile(filePath);
+            var changes = _resourceManager.ImportExcelFile(filePath, _resourceManager.Cultures, _resourceManager.Cultures);
 
             changes.Apply();
         }
 
-        [NotNull]
+		public void ImportExcel([NotNull] string filePath, object languages, object commentLanguages)
+		{
+			Contract.Requires(filePath != null);
+
+			var languages_casted = (languages ?? _resourceManager.Cultures).PsObjectCast<object>().TryCast().Returning<IEnumerable<CultureKey>>()
+				.When<string>(item => new[] { CultureKey.Parse(item) })
+				.When<IEnumerable>(item => item.PsCast<object>().Select(CultureKey.Parse).ToArray())
+				.When<object>(item => new[] { CultureKey.Parse(item.PsObjectCast<object>()) })
+				.Result;
+
+			var comment_languages_casted = (commentLanguages ?? _resourceManager.Cultures).PsObjectCast<object>().TryCast().Returning<IEnumerable<CultureKey>>()
+				.When<string>(item => new[] { CultureKey.Parse(item) })
+				.When<IEnumerable>(item => item.PsCast<object>().Select(CultureKey.Parse).ToArray())
+				.When<object>(item => new[] { CultureKey.Parse(item.PsObjectCast<object>()) })
+				.Result;
+
+			var changes = _resourceManager.ImportExcelFile(
+				filePath,
+				languages_casted ?? _resourceManager.Cultures,
+				comment_languages_casted ?? _resourceManager.Cultures);
+
+			changes.Apply();
+		}
+
+		[NotNull]
         public string CreateSnapshot()
         {
             Contract.Ensures(Contract.Result<string>() != null);

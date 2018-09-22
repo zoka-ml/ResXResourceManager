@@ -381,7 +381,7 @@
             {
                 if (table.HasValidTableHeaderRow())
                 {
-                    entity.ImportTable(table);
+                    entity.ImportTable(table, _resourceManager.Cultures, _resourceManager.Cultures);
                 }
                 else
                 {
@@ -433,7 +433,7 @@
         {
             Contract.Requires(fileName != null);
 
-            var changes = _resourceManager.ImportExcelFile(fileName);
+            var changes = _resourceManager.ImportExcelFile(fileName, _resourceManager.Cultures, _resourceManager.Cultures);
 
             changes.Apply();
         }
